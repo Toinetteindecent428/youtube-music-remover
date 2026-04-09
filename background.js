@@ -992,14 +992,58 @@ function getPrioritizedChunks(chunks, playbackStartSec, predicate = () => true) 
   return prioritized;
 }
 
-async function sliceAudioBlob(audioBlob, startSec, endSec, totalDurationSec) {
+function isMp3LikeMimeType(mimeType) {
+  const normalized = String(mimeType || "").toLowerCase();
+  return normalized.includes("mpeg") || normalized.includes("mp3");
+}
+
+function getProportionalSlice(audioBlob, startSec, endSec, totalDurationSec) {
+  const totalBytes = audioBlob.size;
+  const mimeType = audioBlob.type || "audio/mpeg";
+  const safeDurationSec = Math.max(1, totalDurationSec || 1);
+  const startByte = Math.floor((startSec / safeDurationSec) * totalBytes);
+  const endByte = Math.floor((endSec / safeDurationSec) * totalBytes);
+  return audioBlob.slice(startByte, endByte, mimeType);
+}
+
+function getMp3FrameByteRange(frames, startSec, endSec, totalBytes) {
+  let startByte = 0;
+  let endByte = totalBytes;
+  let accumulatedTime = 0;
+
+  for (const frame of frames) {
+    if (accumulatedTime + frame.durationSec <= startSec) {
+      accumulatedTime += frame.durationSec;
+      startByte = frame.offset + frame.size;
+      continue;
+    }
+    if (accumulatedTime >= endSec) {
+      endByte = frame.offset;
+      break;
+    }
+    accumulatedTime += frame.durationSec;
+  }
+
+  return { startByte, endByte };
+}
+
+async function sliceAudioBlob(audioBlob, startSec, endSec, totalDurationSec, mp3SecondIndex = null) {
   const totalBytes = audioBlob.size;
   const mimeType = audioBlob.type || "audio/mpeg";
 
   // For non-MP3 formats, fallback to proportional slicing
-  if (!mimeType.includes("mpeg") && !mimeType.includes("mp3")) {
-    const startByte = Math.floor((startSec / totalDurationSec) * totalBytes);
-    const endByte = Math.floor((endSec / totalDurationSec) * totalBytes);
+  if (!isMp3LikeMimeType(mimeType)) {
+    return getProportionalSlice(audioBlob, startSec, endSec, totalDurationSec);
+  }
+
+  const wholeSecondStart = Number.isInteger(startSec) ? startSec : null;
+  const wholeSecondEnd = Number.isInteger(endSec) ? endSec : null;
+  const secondOffsets = Array.isArray(mp3SecondIndex?.secondOffsets) ? mp3SecondIndex.secondOffsets : null;
+
+  if (secondOffsets && wholeSecondStart !== null && wholeSecondEnd !== null && secondOffsets[wholeSecondStart] !== undefined) {
+    const startByte = secondOffsets[wholeSecondStart] ?? 0;
+    const endByte = secondOffsets[wholeSecondEnd] ?? totalBytes;
+    console.log(`[IslamicToolkit] Cached index slice: ${startSec}s-${endSec}s -> bytes ${startByte}-${endByte} (of ${totalBytes})`);
     return audioBlob.slice(startByte, endByte, mimeType);
   }
 
@@ -1013,36 +1057,15 @@ async function sliceAudioBlob(audioBlob, startSec, endSec, totalDurationSec) {
     if (!frames || frames.length === 0) {
       // Fallback to proportional if we can't parse frames
       console.warn("[IslamicToolkit] MP3 frame scan failed, using proportional slice");
-      const startByte = Math.floor((startSec / totalDurationSec) * totalBytes);
-      const endByte = Math.floor((endSec / totalDurationSec) * totalBytes);
-      return audioBlob.slice(startByte, endByte, mimeType);
+      return getProportionalSlice(audioBlob, startSec, endSec, totalDurationSec);
     }
 
-    // Find the byte offsets for start and end times
-    let startByte = 0;
-    let endByte = totalBytes;
-    let accumulatedTime = 0;
-
-    for (const frame of frames) {
-      if (accumulatedTime + frame.durationSec <= startSec) {
-        accumulatedTime += frame.durationSec;
-        startByte = frame.offset + frame.size;
-        continue;
-      }
-      if (accumulatedTime >= endSec) {
-        endByte = frame.offset;
-        break;
-      }
-      accumulatedTime += frame.durationSec;
-    }
-
+    const { startByte, endByte } = getMp3FrameByteRange(frames, startSec, endSec, totalBytes);
     console.log(`[IslamicToolkit] Frame-accurate slice: ${startSec}s-${endSec}s â†’ bytes ${startByte}-${endByte} (of ${totalBytes})`);
     return audioBlob.slice(startByte, endByte, mimeType);
   } catch (err) {
     console.warn("[IslamicToolkit] Frame-accurate slice failed, using proportional:", err.message);
-    const startByte = Math.floor((startSec / totalDurationSec) * totalBytes);
-    const endByte = Math.floor((endSec / totalDurationSec) * totalBytes);
-    return audioBlob.slice(startByte, endByte, mimeType);
+    return getProportionalSlice(audioBlob, startSec, endSec, totalDurationSec);
   }
 }
 
@@ -1130,6 +1153,73 @@ function scanMp3Frames(data) {
   }
 
   return frames;
+}
+
+async function buildMp3SecondIndex(audioBlob, mimeType) {
+  if (!isMp3LikeMimeType(mimeType || audioBlob?.type)) return null;
+
+  try {
+    const buf = await audioBlob.arrayBuffer();
+    const view = new Uint8Array(buf);
+    const frames = scanMp3Frames(view);
+    if (!frames || !frames.length) return null;
+
+    const secondOffsets = [0];
+    let accumulatedTime = 0;
+    let previousFrameEndByte = 0;
+    let nextWholeSecond = 1;
+    const epsilon = 1e-9;
+
+    for (const frame of frames) {
+      const frameEndTime = accumulatedTime + frame.durationSec;
+      const frameEndByte = frame.offset + frame.size;
+
+      while (nextWholeSecond <= frameEndTime + epsilon) {
+        const isExactFrameBoundary = Math.abs(frameEndTime - nextWholeSecond) <= epsilon;
+        secondOffsets[nextWholeSecond] = isExactFrameBoundary ? frameEndByte : previousFrameEndByte;
+        nextWholeSecond += 1;
+      }
+
+      accumulatedTime = frameEndTime;
+      previousFrameEndByte = frameEndByte;
+    }
+
+    console.log(
+      "[IslamicToolkit] Cached MP3 second index:",
+      `${secondOffsets.length - 1} boundaries,`,
+      `${frames.length} frames,`,
+      `${accumulatedTime.toFixed(2)} sec`
+    );
+
+    return {
+      secondOffsets,
+      coveredDurationSec: accumulatedTime,
+    };
+  } catch (error) {
+    console.warn("[IslamicToolkit] MP3 second-index build failed:", error.message);
+    return null;
+  }
+}
+
+async function resolveMp3SecondIndex(audioData) {
+  if (!audioData || !isMp3LikeMimeType(audioData.mimeType || audioData.blob?.type)) return null;
+
+  if (audioData.mp3SecondIndex !== undefined) return audioData.mp3SecondIndex;
+
+  if (!audioData.mp3SecondIndexPromise) {
+    audioData.mp3SecondIndexPromise = buildMp3SecondIndex(audioData.blob, audioData.mimeType);
+  }
+
+  try {
+    audioData.mp3SecondIndex = await audioData.mp3SecondIndexPromise;
+  } catch (error) {
+    console.warn("[IslamicToolkit] MP3 second-index resolve failed:", error.message);
+    audioData.mp3SecondIndex = null;
+  } finally {
+    audioData.mp3SecondIndexPromise = null;
+  }
+
+  return audioData.mp3SecondIndex;
 }
 
 /**
@@ -1370,7 +1460,14 @@ const RemoveMusicProvider = {
     const audioData = audioBlobs.get(job.id);
     if (!audioData) throw new Error("Audio blob not found. Please restart.");
 
-    let chunkBlob = await sliceAudioBlob(audioData.blob, chunk.startSec, chunk.endSec, audioData.durationSec);
+    const mp3SecondIndex = await resolveMp3SecondIndex(audioData);
+    let chunkBlob = await sliceAudioBlob(
+      audioData.blob,
+      chunk.startSec,
+      chunk.endSec,
+      audioData.durationSec,
+      mp3SecondIndex
+    );
     // Strip ID3 metadata to prevent the API from fingerprinting the song
     chunkBlob = await stripId3Tags(chunkBlob);
     const sessionPart = (job.providerSessionUuid || "unknown").slice(0, 8);
@@ -1637,6 +1734,8 @@ async function advanceUploadAudioJob(job, signal) {
       blob: audioResult.blob,
       durationSec: audioResult.durationSec,
       mimeType: audioResult.mimeType,
+      mp3SecondIndex: undefined,
+      mp3SecondIndexPromise: buildMp3SecondIndex(audioResult.blob, audioResult.mimeType),
     });
 
     const chunks = buildChunks(audioResult.durationSec, job.chunkDurationSec);
