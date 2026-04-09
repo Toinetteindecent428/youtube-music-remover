@@ -32,7 +32,6 @@ const EXPECTED_STEMS = new Set(["vocals", "drums", "bass", "other", "metronome"]
 // Pipeline concurrency: how many chunks to start/poll at once
 const PIPELINE_UPLOAD_CONCURRENCY = 5;
 const PIPELINE_POLL_CONCURRENCY = 6;
-const PIPELINE_POLL_INTERVAL_MS = 1000;
 
 // â”€â”€â”€ SoundBoost Config â”€â”€â”€
 const BASE_API = "https://api.soundboost.ai";
@@ -238,6 +237,12 @@ function normalizeChunkDurationSec(value) {
   return Math.min(MAX_CHUNK_DURATION_SEC, Math.max(MIN_CHUNK_DURATION_SEC, parsed));
 }
 
+function normalizePlaybackStartSec(value) {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, parsed);
+}
+
 function extractVideoId(youtubeUrl) {
   try {
     const url = new URL(youtubeUrl);
@@ -326,6 +331,7 @@ function createJob(youtubeUrl, tabId, options = {}) {
     readyChunkCount: 0,
     chunks: [],
     providerState: null,
+    playbackStartSec: normalizePlaybackStartSec(options.playbackStartSec),
     fullAudioDurationSec: 0,
     audioMimeType: "",
     nextPollAt: 0,
@@ -358,6 +364,7 @@ function toJobResponse(job) {
     totalDurationSec: job.totalDurationSec || 0,
     totalChunks: job.totalChunks || 0,
     readyChunkCount: job.readyChunkCount || 0,
+    playbackStartSec: job.playbackStartSec || 0,
     chunks: (job.chunks || []).map(c => ({
       index: c.index, startSec: c.startSec, endSec: c.endSec,
       durationSec: c.durationSec, status: c.status,
@@ -948,6 +955,40 @@ function buildChunks(totalDurationSec, chunkDurationSec) {
     });
   }
   return chunks;
+}
+
+function getPreferredChunkIndex(chunks, playbackStartSec) {
+  if (!Array.isArray(chunks) || !chunks.length) return 0;
+
+  const targetTimeSec = normalizePlaybackStartSec(playbackStartSec);
+  const exactMatch = chunks.find(chunk => targetTimeSec >= chunk.startSec && targetTimeSec < chunk.endSec);
+  if (exactMatch) return exactMatch.index;
+
+  if (targetTimeSec >= chunks[chunks.length - 1].endSec) {
+    return chunks[chunks.length - 1].index;
+  }
+
+  return chunks[0].index;
+}
+
+function getPrioritizedChunks(chunks, playbackStartSec, predicate = () => true) {
+  if (!Array.isArray(chunks) || !chunks.length) return [];
+
+  const chunkByIndex = new Map(chunks.map(chunk => [chunk.index, chunk]));
+  const preferredIndex = getPreferredChunkIndex(chunks, playbackStartSec);
+  const prioritized = [];
+
+  for (let index = preferredIndex; index < chunks.length; index += 1) {
+    const chunk = chunkByIndex.get(index);
+    if (chunk && predicate(chunk)) prioritized.push(chunk);
+  }
+
+  for (let index = preferredIndex - 1; index >= 0; index -= 1) {
+    const chunk = chunkByIndex.get(index);
+    if (chunk && predicate(chunk)) prioritized.push(chunk);
+  }
+
+  return prioritized;
 }
 
 async function sliceAudioBlob(audioBlob, startSec, endSec, totalDurationSec) {
@@ -1631,27 +1672,52 @@ async function advanceUploadAudioJob(job, signal) {
     const failedChunk = chunks.find(c => c.status === "error");
     if (failedChunk) throw new Error(failedChunk.error || bgTr("chunkFailed", { n: failedChunk.index + 1 }));
 
-    const activeCount = chunks.filter(c => c.status === "processing").length;
-    const pendingChunks = chunks
-      .filter(c => c.status === "pending")
-      .slice(0, Math.max(0, PIPELINE_UPLOAD_CONCURRENCY - activeCount));
+    const hasActiveChunks = chunks.some(c => c.status === "processing" || c.status === "ready");
+    if (!hasActiveChunks) {
+      const priorityChunk = getPrioritizedChunks(
+        chunks,
+        job.playbackStartSec,
+        c => c.status === "pending"
+      )[0];
 
-    if (pendingChunks.length) {
-      const started = await Promise.all(
-        pendingChunks.map(c => provider.prepareChunk(c, job, signal))
-      );
-      for (const startedChunk of started) chunks[startedChunk.index] = startedChunk;
+      if (priorityChunk) {
+        const startedChunk = await provider.prepareChunk(priorityChunk, job, signal);
+        chunks[startedChunk.index] = startedChunk;
+      }
     }
 
-    const chunksToPoll = chunks
-      .filter(c => c.status === "processing" && c.providerJobId)
-      .slice(0, PIPELINE_POLL_CONCURRENCY);
+    const readyCountBeforePoll = getReadyChunkCount(chunks);
+    const chunksToPoll = getPrioritizedChunks(
+      chunks,
+      job.playbackStartSec,
+      c => c.status === "processing" && c.providerJobId
+    ).slice(0, PIPELINE_POLL_CONCURRENCY);
 
     if (chunksToPoll.length) {
       const polled = await Promise.all(
         chunksToPoll.map(c => provider.pollChunk(c, job, signal))
       );
       for (const polledChunk of polled) chunks[polledChunk.index] = polledChunk;
+    }
+
+    const readyCountAfterPoll = getReadyChunkCount(chunks);
+    const unlockedPlaybackThisCycle = readyCountAfterPoll > readyCountBeforePoll;
+
+    if (!unlockedPlaybackThisCycle) {
+      const activeCount = chunks.filter(c => c.status === "processing").length;
+      const pendingSlots = Math.max(0, PIPELINE_UPLOAD_CONCURRENCY - activeCount);
+      const pendingChunks = getPrioritizedChunks(
+        chunks,
+        job.playbackStartSec,
+        c => c.status === "pending"
+      ).slice(0, pendingSlots);
+
+      if (pendingChunks.length) {
+        const startedChunks = await Promise.all(
+          pendingChunks.map(c => provider.prepareChunk(c, job, signal))
+        );
+        for (const startedChunk of startedChunks) chunks[startedChunk.index] = startedChunk;
+      }
     }
 
     const readyCount = getReadyChunkCount(chunks);
@@ -1770,6 +1836,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         const provider = normalizeProvider(msg.provider);
         const chunkDurationSec = normalizeChunkDurationSec(msg.chunkDurationSec);
+        const playbackStartSec = normalizePlaybackStartSec(msg.playbackStartSec);
         const pipelineType = getProviderPipelineType(provider);
 
         if (msg.forceFresh === true) {
@@ -1814,10 +1881,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         let job = await findReusableJob(youtubeUrl, provider, chunkDurationSec);
         if (!job) {
-          job = createJob(youtubeUrl, tabId, { provider, chunkDurationSec });
+          job = createJob(youtubeUrl, tabId, { provider, chunkDurationSec, playbackStartSec });
           await saveJob(job);
-        } else if (job.tabId !== tabId) {
-          job = markJob(job, { tabId, provider, chunkDurationSec });
+        } else {
+          job = markJob(job, { tabId, provider, chunkDurationSec, playbackStartSec });
           await saveJob(job);
         }
 
@@ -1839,10 +1906,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!jobId) { sendResponse({ error: bgTr("noJobId") }); return; }
         let job = await getJob(jobId);
         if (!job) { sendResponse({ error: bgTr("jobNotFound") }); return; }
+        const playbackStartSec = normalizePlaybackStartSec(msg.playbackStartSec);
 
         const tabId = sender.tab?.id;
         if (tabId && job.tabId !== tabId) {
-          job = markJob(job, { tabId });
+          job = markJob(job, { tabId, playbackStartSec });
+          await saveJob(job);
+        } else if (getProviderPipelineType(job.provider) === "upload_audio" && Math.abs((job.playbackStartSec || 0) - playbackStartSec) > 0.25) {
+          job = markJob(job, { playbackStartSec });
           await saveJob(job);
         }
 

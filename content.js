@@ -792,6 +792,14 @@
     vocalsAudio = null;
   }
 
+  function disposeAudioElement(audioElement) {
+    if (!audioElement) return;
+    try { audioElement.pause(); } catch (e) {}
+    try { audioElement.removeAttribute("src"); } catch (e) {}
+    try { audioElement.load(); } catch (e) {}
+    try { audioElement.remove(); } catch (e) {}
+  }
+
   function cleanupProgressivePlayback() {
     if (!progressivePlayback) return;
     if (progressivePlayback._outgoingAudio) {
@@ -858,13 +866,14 @@
    * Smooth chunk switching with crossfade.
    */
   async function setProgressiveChunkAudio(chunk, options = {}) {
-    if (!progressivePlayback) return false;
-    const blobUrl = progressivePlayback.blobUrls.get(chunk.index);
+    const playbackState = progressivePlayback;
+    if (!playbackState) return false;
+    const blobUrl = playbackState.blobUrls.get(chunk.index);
     if (!blobUrl) return false;
     const video = getVideoElement();
     if (!video) return false;
 
-    progressivePlayback.switchingToChunkIndex = chunk.index;
+    playbackState.switchingToChunkIndex = chunk.index;
 
     // --- Crossfade: keep old audio alive briefly ---
     const oldAudio = vocalsAudio;
@@ -885,14 +894,17 @@
       newAudio.load();
     });
 
+    if (progressivePlayback !== playbackState) {
+      disposeAudioElement(newAudio);
+      return false;
+    }
+
     // Store the ACTUAL audio duration from the decoded audio element
     // This is more accurate than the pre-computed chunk.durationSec
     const actualDuration = (newAudio.duration && isFinite(newAudio.duration))
       ? newAudio.duration : chunk.durationSec;
-    if (progressivePlayback) {
-      const storedChunk = progressivePlayback.chunks.get(chunk.index);
-      if (storedChunk) storedChunk._actualDuration = actualDuration;
-    }
+    const storedChunk = playbackState.chunks.get(chunk.index);
+    if (storedChunk) storedChunk._actualDuration = actualDuration;
 
     // Use actual duration for computing relative time offset
     const effectiveDuration = actualDuration || chunk.durationSec;
@@ -903,8 +915,8 @@
 
     // Set as active
     vocalsAudio = newAudio;
-    progressivePlayback.currentChunkIndex = chunk.index;
-    progressivePlayback.started = true;
+    playbackState.currentChunkIndex = chunk.index;
+    playbackState.started = true;
     silenceOriginalVideo();
     isActive = true;
     startSync();
@@ -915,10 +927,11 @@
     if (hadOldAudio && oldAudio) {
       const steps = 10;
       const stepMs = CROSSFADE_DURATION_MS / steps;
-      progressivePlayback._outgoingAudio = oldAudio;
+      playbackState._outgoingAudio = oldAudio;
 
       for (let i = 1; i <= steps; i++) {
         await sleep(stepMs);
+        if (progressivePlayback !== playbackState) break;
         const progress = i / steps;
         try {
           newAudio.volume = Math.min(1, progress);
@@ -931,12 +944,14 @@
         oldAudio.removeAttribute("src");
         oldAudio.load();
       } catch(e) {}
-      if (progressivePlayback) progressivePlayback._outgoingAudio = null;
+      if (progressivePlayback === playbackState) playbackState._outgoingAudio = null;
     } else {
       newAudio.volume = 1.0;
     }
 
-    progressivePlayback.switchingToChunkIndex = null;
+    if (progressivePlayback === playbackState) {
+      playbackState.switchingToChunkIndex = null;
+    }
     return true;
   }
 
@@ -950,10 +965,12 @@
 
     const shouldSwitch = options.forceSwitch || progressivePlayback.currentChunkIndex !== targetChunk.index;
     if (shouldSwitch) {
-      if (progressivePlayback.switchingToChunkIndex === targetChunk.index) return;
-      if (!progressivePlayback.blobUrls.has(targetChunk.index)) return;
+      const playbackState = progressivePlayback;
+      if (!playbackState) return;
+      if (playbackState.switchingToChunkIndex === targetChunk.index) return;
+      if (!playbackState.blobUrls.has(targetChunk.index)) return;
       setProgressiveChunkAudio(targetChunk, options).catch(error => {
-        if (progressivePlayback) progressivePlayback.switchingToChunkIndex = null;
+        if (progressivePlayback === playbackState) playbackState.switchingToChunkIndex = null;
         console.error("[IslamicToolkit] Progressive chunk switch failed:", error);
       });
       return;
@@ -1148,7 +1165,11 @@
 
   async function pollProcessingJob(generation) {
     if (generation !== processingGeneration || !currentJobId || !isProcessing) return;
-    const snapshot = await sendMessage({ type: "POLL_PROCESS_YOUTUBE", jobId: currentJobId });
+    const snapshot = await sendMessage({
+      type: "POLL_PROCESS_YOUTUBE",
+      jobId: currentJobId,
+      playbackStartSec: getVideoElement()?.currentTime || 0
+    });
     await handleJobSnapshot(snapshot, generation);
   }
 
@@ -1178,7 +1199,8 @@
         type: "START_PROCESS_YOUTUBE",
         url: ytUrl, forceFresh,
         provider: processingProvider,
-        chunkDurationSec
+        chunkDurationSec,
+        playbackStartSec: video.currentTime || 0
       });
       await handleJobSnapshot(snapshot, generation);
     } catch (err) {
