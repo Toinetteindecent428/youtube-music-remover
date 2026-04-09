@@ -1,0 +1,31 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Node (if added later)
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
