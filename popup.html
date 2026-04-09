@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 320px;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 20px;
+      transition: direction 0.3s;
+    }
+    body.rtl {
+      direction: rtl;
+      text-align: right;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .rtl .header {
+      flex-direction: row-reverse;
+    }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      flex: 1;
+    }
+    .header .logo {
+      font-size: 24px;
+    }
+    .version {
+      font-size: 10px;
+      color: #4a9eff;
+      background: rgba(74, 158, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .description {
+      font-size: 12px;
+      color: #888;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .toggle-row span {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .toggle-row .toggle-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+    .toggle-row .toggle-info .sub {
+      font-size: 10px;
+      color: #666;
+      font-weight: 400;
+    }
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #555;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    input:checked + .slider { background: #107c41; }
+    input:checked + .slider::before { transform: translateX(20px); }
+
+    /* Settings button */
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(74, 158, 255, 0.1);
+      border: 1px solid rgba(74, 158, 255, 0.2);
+      border-radius: 10px;
+      color: #4a9eff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    .settings-btn:hover {
+      background: rgba(74, 158, 255, 0.2);
+      border-color: rgba(74, 158, 255, 0.4);
+    }
+    .settings-btn .gear-icon {
+      font-size: 16px;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+      margin-top: 12px;
+    }
+    .status a {
+      color: #4a9eff;
+      text-decoration: none;
+    }
+    .how-it-works {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+    }
+    .how-it-works h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .how-it-works ol {
+      font-size: 11px;
+      color: #888;
+      line-height: 1.8;
+      padding-left: 16px;
+    }
+    .rtl .how-it-works ol {
+      padding-left: 0;
+      padding-right: 16px;
+    }
+
+    /* ===== Settings Page ===== */
+    .page { display: block; }
+    .page.hidden { display: none; }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: #4a9eff;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
+      margin-bottom: 14px;
+      transition: opacity 0.2s;
+    }
+    .back-btn:hover { opacity: 0.8; }
+
+    .settings-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .setting-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+    .setting-info span {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .setting-info .sub {
+      font-size: 10px;
+      color: #666;
+      font-weight: 400;
+      line-height: 1.35;
+    }
+    .field-select {
+      background: #2a2a4e;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 12px;
+      padding: 6px 8px;
+      min-width: 130px;
+      cursor: pointer;
+      outline: none;
+    }
+    .field-select:hover,
+    .field-select:focus {
+      border-color: #4a9eff;
+    }
+
+    /* Slider for chunk duration */
+    .slider-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .slider-value {
+      font-size: 12px;
+      color: #4a9eff;
+      font-weight: 600;
+      min-width: 36px;
+      text-align: center;
+    }
+    .range-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100px;
+      height: 6px;
+      background: #2a2a4e;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #4a9eff;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .range-slider::-webkit-slider-thumb:hover {
+      background: #6bb3ff;
+    }
+    .range-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #4a9eff;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .lang-select {
+      background: #2a2a4e;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 12px;
+      padding: 6px 8px;
+      min-width: 130px;
+      cursor: pointer;
+      outline: none;
+    }
+    .lang-select:hover,
+    .lang-select:focus {
+      border-color: #4a9eff;
+    }
+
+    /* Section divider */
+    .section-divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin: 14px 0;
+    }
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #555;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    /* Disabled state for play-immediately when not applicable */
+    .setting-row.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .setting-note {
+      display: none;
+      margin-top: -4px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255, 184, 77, 0.08);
+      border: 1px solid rgba(255, 184, 77, 0.16);
+      color: #f2c27b;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .setting-note.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== MAIN PAGE ===== -->
+  <div id="mainPage" class="page">
+    <div class="header">
+      <span class="logo">🎵</span>
+      <h1 id="extName">Islamic Toolkit - Music Remover</h1>
+      <span class="version" id="versionLabel">v4.3</span>
+    </div>
+
+    <p class="description" id="extDesc">
+      Removes background music from YouTube videos, leaving only vocals and speech.
+    </p>
+
+    <div class="toggle-row">
+      <span id="enableLabel">Extension Enabled</span>
+      <label class="switch">
+        <input type="checkbox" id="enableToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span id="autoStartLabel">Auto-Start on Page Load</span>
+        <span class="sub" id="autoStartDesc">Automatically removes music when you open a YouTube video</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoStartToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="settings-btn" id="openSettingsBtn">
+      <span class="gear-icon">⚙️</span>
+      <span id="settingsBtnLabel">Settings</span>
+    </button>
+
+    <div class="how-it-works">
+      <h3 id="howTitle">How it works</h3>
+      <ol id="howSteps">
+        <li id="step1">Navigate to any YouTube video</li>
+        <li id="step2">Click the music button on the video player</li>
+        <li id="step3">AI separates vocals from music</li>
+        <li id="step4">Audio streams in — starts playing instantly!</li>
+      </ol>
+    </div>
+
+    <p class="status">
+      <span id="poweredByLabel">Developed by</span> <a href="https://github.com/islamic-toolkit" target="_blank" id="devLink">Islamic Toolkit</a>
+    </p>
+  </div>
+
+  <!-- ===== SETTINGS PAGE ===== -->
+  <div id="settingsPage" class="page hidden">
+    <button class="back-btn" id="backBtn">
+      <span id="backBtnLabel">← Back</span>
+    </button>
+
+    <div class="settings-title" id="settingsTitle">⚙️ Settings</div>
+
+    <!-- Language -->
+    <div class="setting-row">
+      <div class="setting-info">
+        <span id="languageLabel">Language</span>
+      </div>
+      <select class="lang-select" id="langSelect">
+        <option value="en">English</option>
+        <option value="ar">Arabic</option>
+      </select>
+    </div>
+
+    <!-- Provider -->
+    <div class="setting-row">
+      <div class="setting-info">
+        <span id="providerLabel">Provider</span>
+      </div>
+      <select class="field-select" id="providerSelect"></select>
+    </div>
+
+    <div class="setting-note" id="providerWarningRow">
+      <span id="providerWarningText"></span>
+    </div>
+
+    <!-- Chunk Duration Slider -->
+    <div class="setting-row" id="chunkDurationRow">
+      <div class="setting-info">
+        <span id="chunkDurationLabel">Chunk Duration</span>
+        <span class="sub" id="chunkDurationDesc">Shorter = faster start, longer = fewer requests</span>
+      </div>
+      <div class="slider-control">
+        <input class="range-slider" id="chunkDurationSlider" type="range" min="10" max="60" step="5" value="30">
+        <span class="slider-value" id="chunkDurationValue">30s</span>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+    <div class="section-label" id="playbackSectionLabel">Playback Behavior</div>
+
+    <div class="setting-row" id="playbackPromptRow">
+      <div class="toggle-info">
+        <span id="playbackPromptLabel">Ask Before Starting</span>
+        <span class="sub" id="playbackPromptDesc">Show a choice before processing so you can decide whether the video keeps playing with its original audio.</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="playbackPromptToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+  </div>
+
+  <script src="provider-catalog.js"></script>
+  <script src="i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

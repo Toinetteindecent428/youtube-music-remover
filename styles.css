@@ -1,0 +1,347 @@
+/* Islamic Toolkit - Music Remover v4.2 — Content Script Styles */
+
+/* ═══ YouTube Controls Bar Integration ═══ */
+
+/*
+ * YouTube's .ytp-right-controls children use float:right.
+ * We must match that exact float pattern so the icon sits inline.
+ */
+
+.itk-music-btn {
+  /* Match YouTube player buttons in size and alignment */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 48px;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  box-sizing: border-box;
+  vertical-align: top;
+}
+
+.itk-music-btn:hover {
+  opacity: 1;
+}
+
+.itk-music-btn.processing {
+  cursor: wait;
+  opacity: 0.95;
+}
+
+.itk-music-btn.active {
+  opacity: 1;
+}
+
+.itk-music-btn.error {
+  opacity: 1;
+}
+
+/* The inner container for icon + ring, centered vertically */
+.itk-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* SVG icon inside button */
+.itk-music-btn .itk-icon-svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  transition: fill 0.2s ease, color 0.2s ease;
+  pointer-events: none;
+}
+
+.itk-music-btn.active .itk-icon-svg {
+  color: #3ea6ff;
+  fill: #3ea6ff;
+}
+
+.itk-music-btn.error .itk-icon-svg {
+  color: #ff4e45;
+  fill: #ff4e45;
+}
+
+/* ═══ Circular Progress Ring (SVG overlay on the icon) ═══ */
+.itk-progress-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.itk-progress-ring.visible {
+  opacity: 1;
+}
+
+.itk-progress-ring circle.itk-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 2.5;
+}
+
+.itk-progress-ring circle.itk-ring-fg {
+  fill: none;
+  stroke: #3ea6ff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.itk-progress-ring.done circle.itk-ring-fg {
+  stroke: #2ba640;
+}
+
+.itk-music-btn.error .itk-progress-ring circle.itk-ring-fg {
+  stroke: #ff4e45;
+}
+
+/* Indeterminate spinner animation */
+.itk-progress-ring.indeterminate {
+  animation: itk-spin 1.4s linear infinite;
+}
+
+.itk-progress-ring.indeterminate circle.itk-ring-fg {
+  stroke-dasharray: 50, 100;
+  stroke-dashoffset: 0;
+  transition: none;
+}
+
+@keyframes itk-spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ═══ Tooltip (hover only — like YouTube's native tooltips) ═══ */
+.itk-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  background: rgba(28, 28, 28, 0.96);
+  color: #fff;
+  font-family: "YouTube Noto", "Roboto", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 9999;
+  line-height: 1.3;
+  text-align: start;
+}
+
+/* Show tooltip ONLY on hover */
+.itk-music-btn:hover .itk-tooltip {
+  opacity: 1;
+}
+
+.itk-playback-prompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 85;
+}
+
+.itk-playback-prompt.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.itk-playback-prompt-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(2px);
+}
+
+.itk-playback-prompt-card {
+  position: relative;
+  width: min(360px, calc(100% - 28px));
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(18, 18, 18, 0.94);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  text-align: start;
+}
+
+.itk-playback-prompt-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.itk-playback-prompt-desc {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.itk-playback-prompt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.itk-playback-choice-btn,
+.itk-playback-prompt-secondary {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.itk-playback-choice-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.itk-playback-choice-btn.primary {
+  background: #3ea6ff;
+  color: #08131d;
+}
+
+.itk-playback-choice-btn:hover,
+.itk-playback-prompt-secondary:hover {
+  transform: translateY(-1px);
+}
+
+.itk-playback-prompt-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+}
+
+.itk-playback-prompt-checkbox input {
+  margin: 0;
+}
+
+.itk-playback-prompt-secondary {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  padding: 6px 0 0;
+  justify-self: flex-start;
+  text-align: left;
+}
+
+.itk-playback-prompt[dir="rtl"] .itk-playback-prompt-secondary,
+.itk-playback-prompt-card[dir="rtl"] .itk-playback-prompt-secondary {
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .itk-playback-prompt-card {
+    width: calc(100% - 20px);
+    padding: 16px;
+  }
+
+  .itk-playback-prompt-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══ Progress Status Bar (shown below player during processing) ═══ */
+.itk-status-bar {
+  position: absolute;
+  right: 18px;
+  bottom: 58px;
+  left: auto;
+  transform: none;
+  background: rgba(18, 18, 18, 0.72);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: "YouTube Noto", "Roboto", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: min(240px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  text-align: start;
+}
+
+.itk-status-bar.visible {
+  opacity: 0.78;
+  transform: translateY(-2px);
+}
+
+.itk-status-bar .itk-status-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #3ea6ff;
+  border-radius: 50%;
+  animation: itk-spin-status 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+.itk-status-bar .itk-status-check {
+  color: #2ba640;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.itk-status-bar .itk-status-error-icon {
+  color: #ff4e45;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.itk-status-bar .itk-status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes itk-spin-status {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

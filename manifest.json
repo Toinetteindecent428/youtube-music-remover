@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "version": "4.3.0",
+  "description": "__MSG_extDesc__",
+  "default_locale": "en",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "offscreen",
+    "tabs",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://api.soundboost.ai/*",
+    "https://*.r2.cloudflarestorage.com/*",
+    "*://www.youtube.com/*",
+    "*://youtu.be/*",
+    "*://m.youtube.com/*",
+    "https://*.googlevideo.com/*",
+    "https://*.youtube.com/*",
+    "https://eta.etacloud.org/*",
+    "https://*.etacloud.org/*",
+    "https://y2mate.sc/*",
+    "https://api.vms.inverseai.com/*",
+    "https://noise-reducer.nyc3.digitaloceanspaces.com/*",
+    "https://nyc3.digitaloceanspaces.com/*",
+    "https://remove.music/*",
+    "https://loader.to/*",
+    "https://*.savenow.to/*",
+    "https://iotacloud.org/*",
+    "https://*.iotacloud.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
+      "js": [
+        "content-ui-helpers.js",
+        "provider-catalog.js",
+        "i18n.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "__MSG_extName__",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
